@@ -6,6 +6,19 @@ import org.apache.flink.table.api.TableDescriptor;
 
 public class KafkaDescriptors {
 
+  public static TableDescriptor WEBLOGS_DESCRIPTOR =
+          TableDescriptor.forConnector("kafka")
+                  .schema(
+                          Schema.newBuilder()
+                                  .column("logline", DataTypes.STRING())
+                                  .build())
+                  .format("raw")
+                  .option("topic", "weblogs")
+                  .option("scan.startup.mode", "earliest-offset")
+                  .option("properties.bootstrap.servers", "localhost:9092")
+                  .option("scan.bounded.mode", "latest-offset")
+                  .build();
+
   public static TableDescriptor CUSTOMERS_DESCRIPTOR =
       TableDescriptor.forConnector("upsert-kafka")
           .schema(
