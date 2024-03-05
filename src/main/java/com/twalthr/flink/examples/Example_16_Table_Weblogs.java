@@ -42,6 +42,11 @@ public class Example_16_Table_Weblogs {
     printSchema("Structured/POJO", structuredWeblogs);
     structuredWeblogs.execute().print();
 
+
+    // Execute SQL over structured data, without flattening it.
+    env.createTemporaryView("structured_weblogs", structuredWeblogs);
+    env.sqlQuery("SELECT sum(object.bytesSent) as total FROM structured_weblogs").execute().print();
+
     // Here I'm filtering the data based on a sub-field of the POJO.
     // This demonstrates working with pojo/structured data without flattening it
     Table filtered = structuredWeblogs.filter($("object").get("bytesSent").isGreater(2001));
