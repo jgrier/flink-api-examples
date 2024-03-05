@@ -42,7 +42,6 @@ public class Example_16_Table_Weblogs {
     printSchema("Structured/POJO", structuredWeblogs);
     structuredWeblogs.execute().print();
 
-
     // Execute SQL over structured data, without flattening it.
     env.createTemporaryView("structured_weblogs", structuredWeblogs);
     env.sqlQuery("SELECT sum(object.bytesSent) as total FROM structured_weblogs").execute().print();
@@ -52,25 +51,12 @@ public class Example_16_Table_Weblogs {
     Table filtered = structuredWeblogs.filter($("object").get("bytesSent").isGreater(2001));
     filtered.execute().print();
 
-    // We can also map to a fully flattened SQL Table
-    Table weblogsTable =
-      filtered.map(
-        call(RowFromWeblog.class, $("object")))
-        .as(
-          "remoteHost",
-          "remoteUser",
-          "remoteUserAuth",
-          "date",
-          "requestLine",
-          "statusCode",
-          "bytesSent",
-          "referer",
-          "userAgent"
-        );
+    // Flatten out into a tabular SQL table
+    Table weblogsTable = env.sqlQuery("SELECT object.* FROM structured_weblogs");
     printSchema("Flat SQL Table", weblogsTable);
     weblogsTable.execute().print();
 
-    // We can also register this in the SQL catalog and run SQL over it.
+    // Run some more SQL over this tabular data
     env.createTemporaryView("weblogs", weblogsTable);
     Table selected = env.sqlQuery("SELECT * FROM weblogs WHERE remoteHost = 'server4.example.com'");
     selected.execute().print();
@@ -90,22 +76,6 @@ public class Example_16_Table_Weblogs {
     }
   }
 
-  @FunctionHint(output = @DataTypeHint("ROW<s1 STRING, s2 STRING, s3 STRING, s4 STRING, s5 STRING, s6 INTEGER, s7 INTEGER, s8 STRING, s9 STRING>"))
-  public static class RowFromWeblog extends ScalarFunction {
-    public Row eval(Weblog weblog) throws Exception {
-      return Row.of(
-        weblog.remoteHost,
-        weblog.remoteUser,
-        weblog.remoteUserAuth,
-        weblog.date,
-        weblog.requestLine,
-        weblog.statusCode,
-        weblog.bytesSent,
-        weblog.referer,
-        weblog.userAgent);
-    }
-  }
-
   public static class Weblog {
     public String remoteHost;
     public String remoteUser;
@@ -119,6 +89,18 @@ public class Example_16_Table_Weblogs {
     public String referer;
     public String userAgent;
 
+    public Weblog(String remoteHost, String remoteUser, String remoteUserAuth, String date, String requestLine, int statusCode, int bytesSent, String referer, String userAgent) {
+      this.remoteHost = remoteHost;
+      this.remoteUser = remoteUser;
+      this.remoteUserAuth = remoteUserAuth;
+      this.date = date;
+      this.requestLine = requestLine;
+      this.statusCode = statusCode;
+      this.bytesSent = bytesSent;
+      this.referer = referer;
+      this.userAgent = userAgent;
+    }
+
     public static Weblog parse(String input) throws Exception {
       // Define regular expression pattern
       String pattern = "^([^ ]*) ([^ ]*) ([^ ]*) \\[(.*?)\\] \"(.*?)\" (\\d{3}) (\\d+) \"(.*?)\" \"(.*?)\"";
@@ -128,16 +110,15 @@ public class Example_16_Table_Weblogs {
       matcher.find();
 
       // Extract and print each field
-      Weblog weblog = new Weblog();
-      weblog.remoteHost = matcher.group(1);
-      weblog.remoteUser = matcher.group(2);
-      weblog.remoteUserAuth = matcher.group(3);
+      String remoteHost = matcher.group(1);
+      String remoteUser = matcher.group(2);
+      String remoteUserAuth = matcher.group(3);
       String timestampString = matcher.group(4);
-      weblog.requestLine = matcher.group(5);
-      weblog.statusCode = Integer.parseInt(matcher.group(6));
-      weblog.bytesSent = Integer.parseInt(matcher.group(7));
-      weblog.referer = matcher.group(8);
-      weblog.userAgent = matcher.group(9);
+      String requestLine = matcher.group(5);
+      int statusCode = Integer.parseInt(matcher.group(6));
+      int bytesSent = Integer.parseInt(matcher.group(7));
+      String referer = matcher.group(8);
+      String userAgent = matcher.group(9);
 
       // Parse the timestamp
       SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MMM/yyyy:HH:mm:ss Z", Locale.US);
@@ -145,9 +126,9 @@ public class Example_16_Table_Weblogs {
       //weblog.date = dateFormat.parse(timestampString);
 
       // TODO : Fix this
-      weblog.date = timestampString;
+      String date = timestampString;
 
-      return weblog;
+      return new Weblog(remoteHost, remoteUser, remoteUserAuth, date, requestLine, statusCode, bytesSent, referer, userAgent);
     }
   }
 }
